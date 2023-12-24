@@ -110,7 +110,7 @@ class DeepLTranslator(discord.Client):
                     embeds_out.append(embed_out)
                     
         logger.info(f"Translated message. (channel: {message.channel.name}, author: {message.author.name}, length: {message_len})")
-        await channel_out.send(embed=embed_out)
+        await channel_out.send(embeds=embeds_out)
 
 intents = discord.Intents.default()
 intents.message_content = True
