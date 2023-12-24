@@ -72,6 +72,7 @@ class DeepLTranslator(discord.Client):
                 embeds_out.append(embed_out)
                 
                 # Translate the texts in specified fields.
+                embed_dict = embed_dict.copy()
                 for embed_key in embed_dict.keys():
                     if embed_key in ["title", "description"]:
                         message_len += len(embed_dict[embed_key])
@@ -95,6 +96,7 @@ class DeepLTranslator(discord.Client):
             embeds_out.append(embed_out)
             
             # Translate the message.
+            embed_dict = embed_dict.copy()
             if message.content:
                 message_len += len(message.content)
                 
