@@ -33,10 +33,11 @@ class DeepLTranslator(discord.Client):
             return
         
         # Ignore messages sent in channels not specified in config.json.
-        for channel_key in self.config["channels_in"].keys():
+        for channel_key in self.config.keys():
             # If the message is sent in a channel specified in config.json, translate it.
-            if message.channel.id in self.config["channels_in"][channel_key]:
-                channel_out = self.get_channel(self.config["channels_out"][channel_key])
+            if message.channel.id in self.config[channel_key]["channels_in"]:
+                channel_out = self.get_channel(self.config[channel_key]["channel_out"])
+                role_id = self.config[channel_key]["role"]
                 break
         else:
             return
@@ -113,7 +114,7 @@ class DeepLTranslator(discord.Client):
                     embeds_out.append(embed_out)
                     
         logger.info(f"Translated message. (channel: {message.channel.name}, author: {message.author.name}, length: {message_len})")
-        await channel_out.send(embeds=embeds_out)
+        await channel_out.send(f"<@&{role_id}>", embeds=embeds_out)
 
 intents = discord.Intents.default()
 intents.message_content = True
