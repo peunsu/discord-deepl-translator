@@ -52,6 +52,12 @@ class DeepLTranslator(discord.Client):
                 "name": message.author.name,
                 "icon_url": message.author.avatar.url
             },
+            "image": {
+                "url": message.attachments[0].url if message.attachments else None
+            },
+            "footer": {
+                "icon_url": "https://i.imgur.com/sg8WDCE.png"
+            },
             "timestamp": datetime.datetime.now().isoformat(),
             "color": discord.Color.blue().value
         }
@@ -103,7 +109,7 @@ class DeepLTranslator(discord.Client):
             message_len += len(message.content)
         
         logger.info(f"Translated message. (channel: {message.channel.name}, author: {message.author.name}, length: {message_len})")
-        return await channel_out.send(embed=embed_out)
+        await channel_out.send(embed=embed_out)
 
 intents = discord.Intents.default()
 intents.message_content = True
