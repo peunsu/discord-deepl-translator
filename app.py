@@ -86,7 +86,7 @@ class DeepLTranslator(discord.Client):
                 embed_dict["footer"]["text"] = "DeepL Translator로 번역됨"
                 embed_out = discord.Embed.from_dict(embed_dict)
                 embeds_out.append(embed_out)
-        else: # Works if the message has no embeds.
+        else: # Works if the message has no embeds.         
             # Copy default embed dictionary and set footer and description.
             embed_dict = default_embed_dict
             embed_dict["description"] = message.content
@@ -95,19 +95,20 @@ class DeepLTranslator(discord.Client):
             embeds_out.append(embed_out)
             
             # Translate the message.
-            result = self.translate(message.content)
-            translated_text = result.text
-            detected_source_lang = result.detected_source_lang
+            if message.content:
+                message_len += len(message.content)
+                
+                result = self.translate(message.content)
+                translated_text = result.text
+                detected_source_lang = result.detected_source_lang
 
-            # If the source language is not the same as the target language, append the translated message to the embed list.
-            if detected_source_lang != os.environ["TARGET_LANG"]:
-                embed_dict["description"] = translated_text
-                embed_dict["footer"]["text"] = "DeepL Translator로 번역됨"
-                embed_out = discord.Embed.from_dict(embed_dict)
-                embeds_out.append(embed_out)
-            
-            message_len += len(message.content)
-        
+                # If the source language is not the same as the target language, append the translated message to the embed list.
+                if detected_source_lang != os.environ["TARGET_LANG"]:
+                    embed_dict["description"] = translated_text
+                    embed_dict["footer"]["text"] = "DeepL Translator로 번역됨"
+                    embed_out = discord.Embed.from_dict(embed_dict)
+                    embeds_out.append(embed_out)
+                    
         logger.info(f"Translated message. (channel: {message.channel.name}, author: {message.author.name}, length: {message_len})")
         await channel_out.send(embed=embed_out)
 
