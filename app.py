@@ -60,7 +60,7 @@ class DeepLTranslator(discord.Client):
             "footer": {
                 "icon_url": "https://i.imgur.com/sg8WDCE.png"
             },
-            "timestamp": datetime.datetime.now().isoformat(),
+            "timestamp": datetime.datetime.utcnow().isoformat(),
             "color": discord.Color.blue().value
         }
         
