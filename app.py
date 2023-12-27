@@ -2,8 +2,8 @@ import datetime
 import json
 import logging
 import os
+import shelve
 from functools import partial
-from copy import deepcopy
 
 import deepl
 import discord
@@ -13,36 +13,85 @@ load_dotenv()
 
 logger = logging.getLogger(discord.client.__name__)
 
-class DeepLTranslator(discord.Client):
-    async def on_ready(self):
-        # Load config.json.
-        self.config = json.load(open("config.json", "r"))
-        logger.info(f"Successfully loaded config.json.")
-        
-        # Set DeepL translator.
-        auth_key = os.environ["DEEPL_KEY"]
-        translator = deepl.Translator(auth_key)
-        self.translate = partial(translator.translate_text, target_lang=os.environ["TARGET_LANG"])
-        logger.info(f"Successfully set DeepL translator.")
-        
-        logger.info(f'Logged on as {self.user}.')
+config = json.load(open("config.json", "r"))
+config_translator = config["translator"]
+config_relay = config["relay"]
+config_msg = config["messages"]
+print("Successfully loaded config.json.")
 
+translator = deepl.Translator(os.environ["DEEPL_KEY"])
+print("Successfully set DeepL translator API.")
+
+class ButtonView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+    
+    @discord.ui.button(
+        label=config_msg["translate_button"],
+        style=discord.ButtonStyle.primary,
+        custom_id="translate",
+        emoji="🔀"
+    )
+    async def translate(self, interaction: discord.Interaction, button: discord.ui.Button):
+        def _translate(text: str) -> str:
+            try:
+                return translator.translate_text(text, target_lang=config_translator["target_lang"]).text
+            except deepl.DeepLException:
+                return text
+
+        message: discord.Message = interaction.message
+        message_id = str(message.id)
+        
+        with shelve.open("cache.db") as cache:
+            if message_id in cache:
+                embeds_out: list = cache[message_id]
+                logger.info(f"Load cached message. (channel: {message.channel.name}, user: {interaction.user.name})")
+            else:
+                embeds_out = []
+        
+                for embed in message.embeds:
+                    embed_dict = embed.to_dict()
+                    
+                    for embed_key in ["title", "description", "fields"]:
+                        if embed_key not in embed_dict:
+                            continue
+                        
+                        if embed_key == "fields":
+                            for field in embed_dict["fields"]:
+                                for attr in ["value", "name"]:
+                                    field[attr] = _translate(field[attr])
+                        else:
+                            embed_dict[embed_key] = _translate(embed_dict[embed_key])
+                                    
+                    embed_dict["footer"]["text"] = config_msg["translated_footer"]
+                    embed_dict["timestamp"] = datetime.datetime.utcnow().isoformat()
+                    embed_out = discord.Embed.from_dict(embed_dict)
+                    embeds_out.append(embed_out)
+                
+                cache[message_id] = embeds_out
+                logger.info(f"Translate message. (channel: {message.channel.name}, user: {interaction.user.name})")
+        
+        await interaction.response.send_message(config_msg["translate_complete"], embeds=embeds_out, ephemeral=True)
+
+class DeepLTranslator(discord.Client):        
+    async def on_ready(self):
+        logger.info(f'Logged on as {self.user}.')
+        self.add_view(ButtonView())
+    
     async def on_message(self, message: discord.Message):
-        # Ignore messages sent by the bot itself.
         if message.author == self.user:
             return
         
-        # Ignore messages sent in channels not specified in config.json.
-        for channel_key in self.config.keys():
-            # If the message is sent in a channel specified in config.json, translate it.
-            if message.channel.id in self.config[channel_key]["channels_in"]:
-                channel_out: discord.TextChannel = self.get_channel(self.config[channel_key]["channel_out"])
-                role_id: int = self.config[channel_key]["role"]
+        guild = message.guild
+        
+        for key in config_relay.keys():
+            if message.channel.id in config_relay[key]["input"]:
+                channel_out: discord.TextChannel = guild.get_channel(config_relay[key]["output"])
+                role: discord.Role = guild.get_role(config_relay[key]["role"])                
                 break
         else:
             return
         
-        # The list of output embeds.
         embeds_out = []
         
         default_embed_dict = {
@@ -50,63 +99,29 @@ class DeepLTranslator(discord.Client):
                 "name": message.author.name,
                 "icon_url": message.author.avatar.url
             },
-            "image": {
-                "url": message.attachments[0].url if message.attachments else None
-            },
             "footer": {
-                "text": "원본 메시지",
-                "icon_url": "https://i.imgur.com/sg8WDCE.png"
+                "text": config_msg["original_footer"],
+                "icon_url": config_msg["footer_icon_url"]
             },
             "timestamp": datetime.datetime.utcnow().isoformat(),
             "color": discord.Color.blue().value
         }
         
-        embed_dict = default_embed_dict
+        embed_dict = default_embed_dict.copy()
         embed_dict["description"] = message.content
+        embed_dict["image"] = {"url": message.attachments[0].url if message.attachments else None}
         embed_out = discord.Embed.from_dict(embed_dict)
         embeds_out.append(embed_out)
         
-        if embeds := message.embeds: # Works if the message has embeds.
+        if embeds := message.embeds:
             for embed in embeds:
-                # Transform the embed to dictionary, copy default embed dictionary and set footer.
                 embed_dict = embed.to_dict()
                 embed_dict.update(default_embed_dict)
                 embed_out = discord.Embed.from_dict(embed_dict)
                 embeds_out.append(embed_out)
         
-        button = discord.ui.Button(label="번역하기", style=discord.ButtonStyle.primary(), custom_id="translate", emoji="🔀")
-        
-        logger.info(f"Relayed message. (from: {message.channel.id}, to: {channel_out.id}, author: {message.author.name})")
-        await channel_out.send(f"<@&{role_id}>", embeds=embeds_out, components=[button])
-    
-    @discord.ui.button(label="번역하기", style=discord.ButtonStyle.primary(), custom_id="translate", emoji="🔀")
-    async def translate(self, button: discord.ui.Button, interaction: discord.Interaction):
-        message: discord.Message = interaction.message
-        
-        # The list of output embeds.
-        embeds_out = []
-        
-        for embed in message.embeds:
-            # Transform the embed to dictionary, copy default embed dictionary and set footer.
-            embed_dict = embed.to_dict()
-            
-            # Translate the texts in specified fields.
-            for embed_key in embed_dict.keys():
-                if embed_key in ["title", "description"]:
-                    message_len += len(embed_dict[embed_key])
-                    embed_dict[embed_key] = self.translate(embed_dict[embed_key]).text
-                    
-                elif embed_key == "fields":
-                    for field in embed_dict["fields"]:
-                        for attr in ["value", "name"]:
-                            message_len += len(field[attr])
-                            field[attr] = self.translate(field[attr]).text
-                            
-            embed_dict["footer"]["text"] = "DeepL Translator로 번역됨"
-            embed_out = discord.Embed.from_dict(embed_dict)
-            embeds_out.append(embed_out)
-        
-        await interaction.response.send_message()
+        logger.info(f"Relay message. (from: {message.channel.name}, to: {channel_out.name}, author: {message.author.name})")
+        await channel_out.send(role.mention, embeds=embeds_out, view=ButtonView())
 
 intents = discord.Intents.default()
 intents.message_content = True
