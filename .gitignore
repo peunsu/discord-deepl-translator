@@ -1,5 +1,15 @@
-# Created by https://www.toptal.com/developers/gitignore/api/python,dotenv
-# Edit at https://www.toptal.com/developers/gitignore?templates=python,dotenv
+# Created by https://www.toptal.com/developers/gitignore/api/python,dotenv,database
+# Edit at https://www.toptal.com/developers/gitignore?templates=python,dotenv,database
+
+### Database ###
+*.accdb
+*.db
+*.dbf
+*.mdb
+*.pdb
+*.sqlite3
+*.db-shm
+*.db-wal
 
 ### dotenv ###
 .env
@@ -175,4 +185,4 @@ poetry.toml
 # LSP config files
 pyrightconfig.json
 
-# End of https://www.toptal.com/developers/gitignore/api/python,dotenv
+# End of https://www.toptal.com/developers/gitignore/api/python,dotenv,database
