@@ -4,16 +4,16 @@ Translator application for Discord using [DeepL API](https://github.com/DeepLcom
 # Installation
 * Python 3.8 or higher is required
 * Clone the repo:
-```python
+```bash
 $ git clone https://github.com/peunsu/discord-deepl-translator
 ```
 * Create the virtual environment (optional):
-```python
+```bash
 $ python -m venv venv
 $ source venv/bin/activate
 ```
 * Install requirements:
-```python
+```bash
 $ pip install -r requirements.txt
 ```
 * Create a discord bot application.
@@ -22,7 +22,7 @@ $ pip install -r requirements.txt
   * Invite your bot to the server with the scopes [bot & applications.commands](https://discord.com/developers/applications/).
 * Generate and copy your [DeepL API key](https://www.deepl.com/pro-api).
 * Create the `.env` file and insert your discord bot token and DeepL API key:
-```python
+```dotenv
 BOT_TOKEN = "your_bot_token"
 DEEPL_KEY = "your_deepl_api_key"
 ```
@@ -55,6 +55,6 @@ DEEPL_KEY = "your_deepl_api_key"
     }
 ```
 * Run the application:
-```python
+```bash
 $ python app.py
 ```
